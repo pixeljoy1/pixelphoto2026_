@@ -1,0 +1,47 @@
+---
+import Base from '../layouts/Base.astro';
+import DisciplineIndex from '../components/DisciplineIndex.astro';
+import { totals } from '../data/library';
+---
+
+<Base title="Home" surface="ink">
+  <section class="page pt-40 pb-24">
+    <p class="meta">Joydeep Mitra · Photographer · Bengaluru</p>
+    <h1
+      class="mt-8 font-display font-light tracking-menu leading-[0.95]"
+      style="font-size: clamp(3rem, 12vw, 10rem);"
+    >
+      Range,<br />across time.
+    </h1>
+    <p class="mt-10 max-w-2xl text-lg text-muted">
+      Fifteen years across wildlife, deep-sky astronomy, aviation, landscape,
+      documentary, street and portrait. Not a general practice — a set of
+      disciplines, each sustained on its own terms.
+    </p>
+  </section>
+
+  <section class="page pb-24">
+    <div class="flex items-baseline justify-between border-b border-rule pb-4 mb-4">
+      <h2 class="meta">Disciplines</h2>
+      <p class="meta tabular-nums">
+        {totals.frames} frames published
+      </p>
+    </div>
+    <DisciplineIndex />
+  </section>
+
+  {
+    totals.frames === 0 && (
+      <section class="page pb-24">
+        <div class="border border-rule p-8">
+          <p class="meta text-signal">Content pass in progress</p>
+          <p class="mt-3 text-muted">
+            The archive holds 104 catalogued images and 42 sets. The publish
+            selection (<code>ON_SITE&nbsp;=&nbsp;Y</code> in the source sheet) is
+            being done now. Frames appear here as they clear that gate.
+          </p>
+        </div>
+      </section>
+    )
+  }
+</Base>

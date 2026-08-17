@@ -1,0 +1,26 @@
+---
+import { summarize } from '../data/library';
+const disciplines = summarize();
+const yearSpan = (from?: number, to?: number) =>
+  from && to ? (from === to ? `${from}` : `${from} — ${to}`) : '—';
+---
+
+<ul class="flex flex-col divide-y divide-rule">
+  {
+    disciplines.map((d) => (
+      <li>
+        <a
+          href={`${import.meta.env.BASE_URL}/work/${d.discipline.key}`}
+          class="group flex items-baseline justify-between gap-6 py-6 transition-colors hover:text-signal"
+        >
+          <span class="font-display font-light text-h1 tracking-menu leading-none">
+            {d.discipline.label}
+          </span>
+          <span class="meta shrink-0 tabular-nums">
+            {d.frameCount} frames &nbsp;·&nbsp; {yearSpan(d.yearFrom, d.yearTo)}
+          </span>
+        </a>
+      </li>
+    ))
+  }
+</ul>

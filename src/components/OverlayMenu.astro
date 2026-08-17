@@ -1,0 +1,147 @@
+---
+import { summarize } from '../data/library';
+const items = summarize();
+const yearSpan = (from?: number, to?: number) =>
+  from && to ? (from === to ? `${from}` : `${from} — ${to}`) : '—';
+---
+
+<button
+  type="button"
+  id="menu-toggle"
+  aria-expanded="false"
+  aria-controls="site-menu"
+  class="fixed top-5 right-5 z-50 flex items-center gap-3 px-3 py-2 meta text-paper mix-blend-difference"
+>
+  <span class="hairline-toggle" aria-hidden="true"></span>
+  <span data-menu-label>Menu</span>
+</button>
+
+<dialog
+  id="site-menu"
+  aria-label="Site navigation"
+  class="fixed inset-0 m-0 h-screen w-screen max-h-none max-w-none overflow-hidden bg-ink-soft text-paper p-0 open:flex flex-col"
+>
+  <div class="page flex-1 flex flex-col justify-center py-24">
+    <p class="meta mb-8">Disciplines</p>
+    <ul class="flex flex-col gap-2" id="menu-items">
+      {
+        items.map((d, i) => (
+          <li
+            style={`--stagger:${i * 30}ms`}
+            class="menu-item group flex items-baseline justify-between gap-6 border-b border-rule py-3"
+          >
+            <a
+              href={`${import.meta.env.BASE_URL}/work/${d.discipline.key}`}
+              class="flex-1 font-display font-light text-menu tracking-menu leading-[1.05] transition-colors duration-200 group-hover:text-signal"
+            >
+              {d.discipline.label}
+            </a>
+            <span class="meta shrink-0 tabular-nums">
+              <span data-count={d.frameCount}>{d.frameCount}</span> frames
+              &nbsp;·&nbsp; {yearSpan(d.yearFrom, d.yearTo)}
+            </span>
+          </li>
+        ))
+      }
+    </ul>
+    <div class="mt-16 flex flex-wrap items-baseline gap-6 meta">
+      <a href={`${import.meta.env.BASE_URL}/`} class="hover:text-signal">Home</a>
+      <a href={`${import.meta.env.BASE_URL}/about`} class="hover:text-signal">About</a>
+      <a href={`${import.meta.env.BASE_URL}/prints`} class="hover:text-signal">Prints</a>
+      <a href={`${import.meta.env.BASE_URL}/contact`} class="hover:text-signal">Contact</a>
+    </div>
+  </div>
+</dialog>
+
+<style>
+  .hairline-toggle {
+    display: inline-block;
+    width: 18px;
+    height: 1px;
+    background: currentColor;
+    transition: transform 200ms ease;
+  }
+
+  #menu-toggle[aria-expanded='true'] .hairline-toggle {
+    transform: rotate(45deg);
+  }
+
+  #site-menu {
+    border: 0;
+    clip-path: circle(0% at calc(100% - 2.5rem) 2.5rem);
+    transition: clip-path 500ms cubic-bezier(0.86, 0, 0.07, 1);
+  }
+
+  #site-menu[open] {
+    clip-path: circle(150% at calc(100% - 2.5rem) 2.5rem);
+  }
+
+  #site-menu::backdrop {
+    background: transparent;
+  }
+
+  .menu-item {
+    opacity: 0;
+    transform: translateY(12px);
+    transition:
+      opacity 400ms ease var(--stagger),
+      transform 400ms ease var(--stagger);
+  }
+
+  #site-menu[open] .menu-item {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    #site-menu {
+      transition: none;
+    }
+    .menu-item {
+      transition: none;
+      opacity: 1;
+      transform: none;
+    }
+  }
+</style>
+
+<script>
+  const dialog = document.getElementById('site-menu') as HTMLDialogElement | null;
+  const toggle = document.getElementById('menu-toggle') as HTMLButtonElement | null;
+  const label = toggle?.querySelector('[data-menu-label]');
+
+  const setLabel = (open: boolean) => {
+    if (label) label.textContent = open ? 'Close' : 'Menu';
+    toggle?.setAttribute('aria-expanded', String(open));
+  };
+
+  toggle?.addEventListener('click', () => {
+    if (!dialog) return;
+    if (dialog.open) {
+      dialog.close();
+    } else {
+      dialog.showModal();
+      setLabel(true);
+      // Count-up animation
+      dialog.querySelectorAll<HTMLElement>('[data-count]').forEach((el) => {
+        const target = parseInt(el.dataset.count ?? '0', 10);
+        if (!Number.isFinite(target) || target === 0) return;
+        const duration = 600;
+        const start = performance.now();
+        const step = (now: number) => {
+          const t = Math.min(1, (now - start) / duration);
+          el.textContent = String(Math.floor(target * t));
+          if (t < 1) requestAnimationFrame(step);
+          else el.textContent = String(target);
+        };
+        requestAnimationFrame(step);
+      });
+    }
+  });
+
+  dialog?.addEventListener('close', () => setLabel(false));
+
+  dialog?.addEventListener('click', (e) => {
+    if (e.target === dialog) dialog.close();
+  });
+</script>

@@ -1,0 +1,19 @@
+/* Design tokens — see README §3 */
+
+:root {
+  --ink: #0B0B0C;
+  --ink-soft: #1A1A1D;
+  --paper: #F2F0EC;
+  --rule: #3A3A40;
+  --muted: #8A8A93;
+  --signal: #B8734A;
+
+  --t-menu: clamp(2.75rem, 8vw, 7rem);
+  --t-h1: clamp(2rem, 5vw, 3.5rem);
+  --t-h2: clamp(1.25rem, 2.5vw, 1.75rem);
+  --t-body: 1rem;
+  --t-meta: 0.8125rem;
+
+  --page-max: 88rem;
+  --gutter: clamp(1rem, 3vw, 2.5rem);
+}

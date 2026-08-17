@@ -1,0 +1,63 @@
+---
+import Base from '../../../layouts/Base.astro';
+import { DISCIPLINES } from '../../../data/disciplines';
+import { getDiscipline, getSet } from '../../../data/library';
+
+export function getStaticPaths() {
+  const paths: { params: { discipline: string; set: string } }[] = [];
+  for (const d of DISCIPLINES) {
+    const summary = getDiscipline(d.key);
+    if (!summary) continue;
+    for (const s of summary.sets) {
+      paths.push({ params: { discipline: d.key, set: s.slug } });
+    }
+  }
+  return paths;
+}
+
+const { discipline, set: setSlug } = Astro.params;
+const summary = getDiscipline(discipline as any);
+const set = summary ? getSet(discipline as any, setSlug!) : undefined;
+if (!summary || !set) throw new Error(`Unknown route: ${discipline}/${setSlug}`);
+---
+
+<Base title={`${set.name} — ${summary.discipline.label}`} surface="ink">
+  <section class="page pt-40 pb-16">
+    <p class="meta">
+      <a href={`${import.meta.env.BASE_URL}/work`} class="hover:text-signal">Work</a>
+      ·
+      <a
+        href={`${import.meta.env.BASE_URL}/work/${summary.discipline.key}`}
+        class="hover:text-signal"
+      >
+        {summary.discipline.label}
+      </a>
+      · {set.name}
+    </p>
+    <h1 class="mt-6 font-display font-light text-h1 tracking-menu leading-none">{set.name}</h1>
+    <p class="mt-4 meta tabular-nums">
+      {set.frameCount} frames &nbsp;·&nbsp; {set.year ?? '—'}
+    </p>
+  </section>
+
+  <section class="page pb-24 flex flex-col gap-6">
+    {
+      set.rows.map((row) => (
+        <figure class="bg-ink-soft flex flex-col">
+          <div class="aspect-[3/2] flex items-center justify-center p-8">
+            <p class="meta text-center text-muted">
+              {row.title ?? row.fileName}
+              <br />
+              <span class="text-signal">image pending pipeline</span>
+            </p>
+          </div>
+          {row.caption && (
+            <figcaption class="p-4 text-sm text-muted border-t border-rule">
+              {row.caption}
+            </figcaption>
+          )}
+        </figure>
+      ))
+    }
+  </section>
+</Base>

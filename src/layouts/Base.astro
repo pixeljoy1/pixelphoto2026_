@@ -1,0 +1,41 @@
+---
+import '../styles/global.css';
+import OverlayMenu from '../components/OverlayMenu.astro';
+import Footer from '../components/Footer.astro';
+
+interface Props {
+  title: string;
+  description?: string;
+  surface?: 'ink' | 'paper';
+}
+
+const { title, description, surface = 'ink' } = Astro.props;
+const fullTitle = `${title} · Joydeep Photography`;
+const siteDesc =
+  description ??
+  'Joydeep Mitra — multi-genre photographer. Wildlife, astro, aviation, landscape, documentary.';
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{fullTitle}</title>
+    <meta name="description" content={siteDesc} />
+    <meta name="author" content="Joydeep Mitra" />
+    <meta property="og:title" content={fullTitle} />
+    <meta property="og:description" content={siteDesc} />
+    <meta property="og:type" content="website" />
+    <meta name="theme-color" content={surface === 'paper' ? '#F2F0EC' : '#0B0B0C'} />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%230B0B0C'/%3E%3Ccircle cx='16' cy='16' r='6' fill='%23B8734A'/%3E%3C/svg%3E" />
+  </head>
+  <body data-surface={surface}>
+    <a href="#main" class="sr-only focus:not-sr-only fixed top-2 left-2 z-[60] bg-signal text-ink px-3 py-2 meta">Skip to content</a>
+    <OverlayMenu />
+    <main id="main">
+      <slot />
+    </main>
+    <Footer />
+  </body>
+</html>
