@@ -186,6 +186,35 @@ const payload = available.map((r) => ({
       nextBtn?.addEventListener('click', () => show(currentIndex + 1));
       imgEl.addEventListener('contextmenu', (e) => e.preventDefault());
       imgEl.addEventListener('dragstart', (e) => e.preventDefault());
+
+      // Touch swipe (mobile only — desktop pointers never fire touch events).
+      let touchStartX = 0;
+      let touchStartY = 0;
+      let touchStartTime = 0;
+      const SWIPE_MIN_DISTANCE = 40;
+      const SWIPE_MAX_OFF_AXIS = 75;
+      const SWIPE_MAX_DURATION = 600;
+
+      function onTouchStart(e: TouchEvent) {
+        if (e.touches.length !== 1) return;
+        touchStartX = e.touches[0].clientX;
+        touchStartY = e.touches[0].clientY;
+        touchStartTime = Date.now();
+      }
+
+      function onTouchEnd(e: TouchEvent) {
+        if (images.length < 2 || e.changedTouches.length !== 1) return;
+        const dx = e.changedTouches[0].clientX - touchStartX;
+        const dy = e.changedTouches[0].clientY - touchStartY;
+        if (Date.now() - touchStartTime > SWIPE_MAX_DURATION) return;
+        if (Math.abs(dx) < SWIPE_MIN_DISTANCE || Math.abs(dy) > SWIPE_MAX_OFF_AXIS) return;
+        show(dx < 0 ? currentIndex + 1 : currentIndex - 1);
+      }
+
+      for (const el of [imgEl, backdrop]) {
+        el.addEventListener('touchstart', onTouchStart, { passive: true });
+        el.addEventListener('touchend', onTouchEnd, { passive: true });
+      }
     });
   }
 
@@ -354,6 +383,12 @@ const payload = available.map((r) => ({
   }
 
   @media (max-width: 640px) {
+    .lightbox-prev,
+    .lightbox-next {
+      width: 3.25rem;
+      height: 3.25rem;
+      background: rgba(26, 26, 29, 0.75);
+    }
     .lightbox-prev {
       left: 0.25rem;
     }
