@@ -2,13 +2,15 @@
 // One-off: resize decoded Drive originals in /tmp/originals into
 // public/photos/<discipline>/<fileId>-{thumb,full}.jpg
 import sharp from 'sharp';
-import { readdirSync, readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { readdirSync, readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
 import path from 'node:path';
 
 const SRC_DIR = process.argv[2] ? path.resolve(process.argv[2]) : '/tmp/originals';
 const DISCIPLINE = process.argv[3] || 'wildlife';
 const OUT_DIR = path.resolve(`public/photos/${DISCIPLINE}`);
 const MANIFEST_PATH = path.resolve('src/data/photo-assets.json');
+
+mkdirSync(OUT_DIR, { recursive: true });
 
 const manifest = existsSync(MANIFEST_PATH) ? JSON.parse(readFileSync(MANIFEST_PATH, 'utf-8')) : {};
 

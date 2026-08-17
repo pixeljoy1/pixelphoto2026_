@@ -47,6 +47,18 @@ const REQUIRED_COLS = [
 const FORBIDDEN_STATES = new Set(['AI_GENERATED', 'THIRD_PARTY', 'ARTWORK']);
 const FORBIDDEN_CATEGORIES = new Set(['BRAND']);
 
+// Sheet SET values are working-catalog labels, not public copy — normalize
+// the ones with pipeline/status jargon ("ALLTIME", "uncurated", "Super
+// Select") to clean, professional set titles. Applied at build time so
+// renames survive the next "pull the sheet".
+const SET_NAME_OVERRIDES = {
+  'Tadoba ALLTIME': 'Tadoba Selects',
+  'Munnar Super Select': 'Munnar',
+  'Print file A2': 'A2 Print Submission',
+  'Birds Mysuru / Ranganathittu': 'Mysuru & Ranganathittu',
+  'Sony Aero (uncurated)': 'Sony Aero',
+};
+
 function parseCSV(text) {
   const rows = [];
   let field = '';
@@ -82,7 +94,7 @@ function toRow(headers, values) {
   return {
     id: parseInt(pick(rec, ['ID', 'ROW']), 10),
     category: rec.CATEGORY,
-    set: rec.SET,
+    set: SET_NAME_OVERRIDES[rec.SET] ?? rec.SET,
     year: rec.YEAR,
     fileName: rec.FILE_NAME,
     fileId: rec.FILE_ID,

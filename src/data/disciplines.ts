@@ -67,7 +67,7 @@ export const DISCIPLINES: Discipline[] = [
     key: 'macro',
     label: 'Macro',
     dbCategory: 'MACRO_OTHER',
-    blurb: 'Small-scale work — pending taxonomy review (README §11 Q2).',
+    blurb: 'Small-scale work — texture and detail up close.',
   },
   {
     key: 'awards',
