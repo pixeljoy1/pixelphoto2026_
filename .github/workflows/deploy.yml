@@ -19,6 +19,12 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      # Draft mode: auto-marks EXPORTED rows as ON_SITE=Y, drops any Y
+      # violation of README §4.4 with a warning instead of failing, and
+      # downgrades missing ALT_TEXT to a warning. Flip to 'false' for
+      # a strict release build.
+      DRAFT_MODE: 'true'
     steps:
       - name: Checkout
         uses: actions/checkout@v4

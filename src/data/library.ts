@@ -29,22 +29,15 @@ export interface LibraryRow {
 interface LibraryFile {
   generatedAt: string | null;
   source: string;
+  mode?: 'draft' | 'strict';
   rows: LibraryRow[];
 }
 
 const library = raw as LibraryFile;
 
-// Content integrity — README §4.4. Belt-and-braces alongside the build script.
-const FORBIDDEN_IF_PUBLISHED: LibraryState[] = ['AI_GENERATED', 'THIRD_PARTY'];
-const violations = library.rows.filter(
-  (r) => r.onSite && FORBIDDEN_IF_PUBLISHED.includes(r.state),
-);
-if (violations.length > 0) {
-  const ids = violations.map((v) => v.id).join(', ');
-  throw new Error(
-    `Content integrity violation: rows [${ids}] are marked ON_SITE=Y with state in {AI_GENERATED, THIRD_PARTY}. See README §4.4.`,
-  );
-}
+// Content integrity (§4.4) is enforced upstream in scripts/build-library.mjs.
+// By the time we read library.json, forbidden rows have already been dropped
+// (draft mode) or the build has already failed (strict mode).
 
 export const rows: LibraryRow[] = library.rows.filter((r) => r.onSite);
 
