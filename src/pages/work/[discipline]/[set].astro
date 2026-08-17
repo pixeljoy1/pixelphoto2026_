@@ -1,5 +1,6 @@
 ---
 import Base from '../../../layouts/Base.astro';
+import Lightbox from '../../../components/Lightbox.astro';
 import { DISCIPLINES } from '../../../data/disciplines';
 import { getDiscipline, getSet } from '../../../data/library';
 
@@ -40,24 +41,14 @@ if (!summary || !set) throw new Error(`Unknown route: ${discipline}/${setSlug}`)
     </p>
   </section>
 
-  <section class="page pb-24 flex flex-col gap-6">
-    {
-      set.rows.map((row) => (
-        <figure class="bg-ink-soft flex flex-col">
-          <div class="aspect-[3/2] flex items-center justify-center p-8">
-            <p class="meta text-center text-muted">
-              {row.title ?? row.fileName}
-              <br />
-              <span class="text-signal">image pending pipeline</span>
-            </p>
-          </div>
-          {row.caption && (
-            <figcaption class="p-4 text-sm text-muted border-t border-rule">
-              {row.caption}
-            </figcaption>
-          )}
-        </figure>
-      ))
-    }
+  <section class="page pb-24">
+    <Lightbox
+      images={set.rows.map((row) => ({
+        fileId: row.fileId,
+        alt: row.altText || row.title || row.fileName,
+        caption: row.caption || row.title,
+      }))}
+      columns="repeat(auto-fill, minmax(280px, 1fr))"
+    />
   </section>
 </Base>

@@ -88,6 +88,7 @@ function toRow(headers, values) {
     fileId: rec.FILE_ID,
     state: rec.STATE,
     onSite: /^y(es)?$/i.test(rec.ON_SITE),
+    onSiteExplicitNo: /^n(o)?$/i.test(rec.ON_SITE),
     gallery: rec.GALLERY || undefined,
     sort: rec.SORT ? parseInt(rec.SORT, 10) : undefined,
     title: rec.TITLE || undefined,
@@ -128,6 +129,7 @@ function applyDraftMode(rows) {
       row.onSite = false; // hard drop, always
       continue;
     }
+    if (row.onSiteExplicitNo) continue; // explicit N always wins, never auto-promoted
     if (row.state === 'EXPORTED' && !row.onSite) row.onSite = true;
   }
   if (droppedForbidden.length) {

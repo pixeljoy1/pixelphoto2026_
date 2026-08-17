@@ -1,5 +1,6 @@
 ---
 import Base from '../../../layouts/Base.astro';
+import Lightbox from '../../../components/Lightbox.astro';
 import { DISCIPLINES } from '../../../data/disciplines';
 import { getDiscipline } from '../../../data/library';
 
@@ -55,19 +56,14 @@ const yearSpan = (from?: number, to?: number) =>
                 {set.frameCount} frames &nbsp;·&nbsp; {set.year ?? '—'}
               </span>
             </div>
-            <div
-              class="mt-6 grid gap-3"
-              style="grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));"
-            >
-              {set.rows.map((row) => (
-                <figure class="bg-ink-soft aspect-[4/3] flex items-center justify-center p-4">
-                  <figcaption class="meta text-center text-muted">
-                    {row.title ?? row.fileName}
-                    <br />
-                    <span class="text-signal">image pending pipeline</span>
-                  </figcaption>
-                </figure>
-              ))}
+            <div class="mt-6">
+              <Lightbox
+                images={set.rows.map((row) => ({
+                  fileId: row.fileId,
+                  alt: row.altText || row.title || row.fileName,
+                  caption: row.caption || row.title,
+                }))}
+              />
             </div>
           </div>
         ))}
