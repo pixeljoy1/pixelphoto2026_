@@ -57,6 +57,9 @@ const SET_NAME_OVERRIDES = {
   'Print file A2': 'A2 Print Submission',
   'Birds Mysuru / Ranganathittu': 'Mysuru & Ranganathittu',
   'Sony Aero (uncurated)': 'Sony Aero',
+  'Varanasi Print Pack 1.1': 'Varanasi',
+  'hi-RES EXPO': 'Expo',
+  'Milky Way hi-RES': 'Milky Way',
 };
 
 function parseCSV(text) {
