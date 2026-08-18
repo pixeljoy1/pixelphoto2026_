@@ -18,8 +18,12 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 const resolved = images.map((img) => ({ ...img, asset: localPhoto(img.fileId) }));
 const available = resolved.filter((r) => r.asset);
 
+// Drive hotlink fallbacks are absolute URLs; local synced photos are
+// root-relative paths that need the site's base path prefixed.
+const resolveUrl = (p: string) => (/^https?:\/\//.test(p) ? p : `${base}${p}`);
+
 const payload = available.map((r) => ({
-  full: `${base}${r.asset!.full}`,
+  full: resolveUrl(r.asset!.full),
   alt: r.alt,
   caption: r.caption ?? '',
 }));
@@ -37,7 +41,7 @@ const payload = available.map((r) => ({
           aria-label={`Open image ${available.indexOf(r) + 1} of ${available.length}: ${r.alt}`}
         >
           <img
-            src={`${base}${r.asset.thumb}`}
+            src={resolveUrl(r.asset.thumb)}
             alt={r.alt}
             loading="lazy"
             decoding="async"
