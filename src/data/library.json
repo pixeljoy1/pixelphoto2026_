@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-18T13:31:06.234Z",
+  "generatedAt": "2026-08-19T19:01:57.208Z",
   "source": "csv",
   "mode": "draft",
   "rows": [
@@ -1083,8 +1083,8 @@
     },
     {
       "id": 99,
-      "category": "SUBMISSIONS",
-      "set": "Head-On Photo Awards",
+      "category": "STREET_URBAN",
+      "set": "Varanasi",
       "year": "2021",
       "fileName": "2021_HPA_Disapproval_BW.jpg",
       "fileId": "12gJymUXlfnVXjpbhZ2FQghiEuPaqFX47",
@@ -1094,8 +1094,8 @@
     },
     {
       "id": 100,
-      "category": "SUBMISSIONS",
-      "set": "Head-On Photo Awards",
+      "category": "STREET_URBAN",
+      "set": "Varanasi",
       "year": "2021",
       "fileName": "2021_HPA_Disapproval_COL.jpg",
       "fileId": "1ETz8i_ypKuMKxMIC7MKR6SL6bwNce0SV",
@@ -1105,8 +1105,8 @@
     },
     {
       "id": 101,
-      "category": "SUBMISSIONS",
-      "set": "A2 Print Submission",
+      "category": "ASTRO",
+      "set": "Deep sky",
       "year": "2021",
       "fileName": "2021_Astro_A2_print_file.jpg",
       "fileId": "1h7d0xpJkPrBs5pnmwzPLoNozKo_v1eaQ",
