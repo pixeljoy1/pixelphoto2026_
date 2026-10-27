@@ -1,8 +1,13 @@
 ---
-// Full-bleed, auto-scrolling highlight reel at the top of the homepage.
-// Picks up to 2 photos per non-empty discipline (favoring variety across
-// sets), then duplicates the strip for a seamless infinite CSS marquee —
-// no JS animation loop, so it stays smooth under load.
+// Full-bleed highlight reel at the top of the homepage. Picks up to 2
+// photos per non-empty discipline (favoring variety across sets), then
+// duplicates the strip once for a seamless infinite loop.
+//
+// Motion is hand-driven in JS (requestAnimationFrame), not a CSS
+// keyframe animation: it cruises on its own, but wheel/trackpad input
+// and pointer-drag add velocity on top, and a mouse-proximity "dock
+// magnify" effect reacts to the hovered tile every frame. See the
+// <script> below for the physics.
 import { summarize } from '../data/library';
 import { localPhoto } from '../lib/photos';
 
@@ -35,21 +40,14 @@ for (const d of summarize()) {
   }
 }
 
-// Seamless loop needs the track duplicated exactly once (translate -50%).
+// Seamless loop needs the track duplicated exactly once.
 const track = [...slides, ...slides];
-
-// Scale animation duration to content length so speed (px/s) stays
-// constant regardless of how many disciplines are live.
-const TILE_WIDTH = 300;
-const GAP = 16;
-const trackWidthPx = slides.length * (TILE_WIDTH + GAP);
-const PX_PER_SEC = 34;
-const durationSec = Math.max(20, Math.round(trackWidthPx / PX_PER_SEC));
+const CRUISE_PX_PER_SEC = 34;
 ---
 
 {
   slides.length > 0 && (
-    <section class="hero-carousel" aria-label="Featured work — select a frame to browse that section">
+    <section class="hero-carousel" aria-label="Featured work — scroll, drag, or hover to explore; select a frame to browse that section">
       <button
         type="button"
         class="hc-toggle"
@@ -61,16 +59,14 @@ const durationSec = Math.max(20, Math.round(trackWidthPx / PX_PER_SEC));
           ❚❚
         </span>
       </button>
-      <div class="hc-viewport">
-        <ul class="hc-track" data-hc-track style={`--hc-duration:${durationSec}s`}>
+      <div class="hc-viewport" data-hc-viewport>
+        <ul class="hc-track" data-hc-track data-hc-speed={CRUISE_PX_PER_SEC}>
           {track.map((s, i) => (
             <li class="hc-tile" aria-hidden={i >= slides.length ? 'true' : undefined}>
-              <a
-                href={s.href}
-                class="hc-tile-link"
-                tabindex={i >= slides.length ? -1 : 0}
-              >
-                <img src={s.thumb} alt={s.alt} loading={i < 6 ? 'eager' : 'lazy'} decoding="async" draggable="false" />
+              <a href={s.href} class="hc-tile-link" tabindex={i >= slides.length ? -1 : 0}>
+                <span class="hc-tile-img-wrap" data-hc-img-wrap>
+                  <img src={s.thumb} alt={s.alt} loading={i < 6 ? 'eager' : 'lazy'} decoding="async" draggable="false" />
+                </span>
                 <span class="hc-tile-overlay">
                   <span class="hc-tile-discipline font-display font-medium">{s.disciplineLabel}</span>
                   <span class="hc-tile-set">{s.setName} →</span>
@@ -90,16 +86,184 @@ const durationSec = Math.max(20, Math.round(trackWidthPx / PX_PER_SEC));
       if (root.dataset.hcInit) return;
       root.dataset.hcInit = 'true';
 
+      const viewport = root.querySelector<HTMLElement>('[data-hc-viewport]');
+      const track = root.querySelector<HTMLUListElement>('[data-hc-track]');
       const toggle = root.querySelector<HTMLButtonElement>('[data-hc-toggle]');
       const icon = root.querySelector<HTMLElement>('[data-hc-icon]');
+      if (!viewport || !track) return;
+
+      const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      if (reduceMotion) return; // CSS fallback: plain scrollable row, no JS motion.
+
+      const fineHover = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+
+      const tiles = Array.from(track.querySelectorAll<HTMLLIElement>('.hc-tile'));
+      const halfCount = tiles.length / 2; // track = [items, items]
+      const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
+
+      let tileLefts: number[] = [];
+      let tileWidths: number[] = [];
+      let halfWidth = 0;
+      function measure(): void {
+        tileLefts = tiles.map((t) => t.offsetLeft);
+        tileWidths = tiles.map((t) => t.offsetWidth);
+        halfWidth = tileLefts[halfCount] ?? track.scrollWidth / 2;
+      }
+      measure();
+      window.addEventListener('resize', measure);
+
+      const cruiseSpeed = -parseFloat(track.dataset.hcSpeed || '34'); // px/s, leftward
+      let velocity = cruiseSpeed;
+      let offset = 0; // monotonic internal position; rendered value is wrapped into [0, halfWidth)
+      let userPaused = false;
+      let focusPaused = false;
+      let dragging = false;
+      let wasDrag = false;
+      let lastTime = performance.now();
+
+      let mouseX: number | null = null;
+      let hovering = false;
+
+      // --- Wheel / trackpad: an impulse added to velocity, which then
+      // eases back toward cruise speed on its own (the "elastic settle"). ---
+      function onWheel(e: WheelEvent): void {
+        const delta = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
+        e.preventDefault();
+        velocity = clamp(velocity + delta * 2.4, -1600, 1600);
+      }
+      viewport.addEventListener('wheel', onWheel, { passive: false });
+
+      // --- Pointer drag: grab-and-fling, like a physical reel. ---
+      let dragStartClientX = 0;
+      let dragStartOffset = 0;
+      let dragSamples: { t: number; x: number }[] = [];
+      let dragMoved = 0;
+
+      function onPointerDown(e: PointerEvent): void {
+        dragging = true;
+        wasDrag = false;
+        dragMoved = 0;
+        // No setPointerCapture here: it would retarget the browser's native
+        // click synthesis away from the <a> tile under the cursor, breaking
+        // click-to-navigate. window-level pointermove/pointerup already
+        // track the drag past the element's own bounds without it.
+        dragStartClientX = e.clientX;
+        dragStartOffset = offset;
+        dragSamples = [{ t: performance.now(), x: e.clientX }];
+        velocity = 0;
+        root.classList.add('is-dragging');
+      }
+      function onPointerMove(e: PointerEvent): void {
+        mouseX = e.clientX;
+        if (!dragging) return;
+        const dx = e.clientX - dragStartClientX;
+        dragMoved = Math.max(dragMoved, Math.abs(dx));
+        if (dragMoved > 6) wasDrag = true;
+        offset = dragStartOffset - dx;
+        dragSamples.push({ t: performance.now(), x: e.clientX });
+        if (dragSamples.length > 6) dragSamples.shift();
+      }
+      function onPointerUp(): void {
+        if (!dragging) return;
+        dragging = false;
+        root.classList.remove('is-dragging');
+        if (dragSamples.length >= 2) {
+          const first = dragSamples[0];
+          const last = dragSamples[dragSamples.length - 1];
+          const dt = (last.t - first.t) / 1000;
+          if (dt > 0.01) velocity = clamp((first.x - last.x) / dt, -2400, 2400);
+        }
+      }
+      track.addEventListener('pointerdown', onPointerDown);
+      window.addEventListener('pointermove', onPointerMove);
+      window.addEventListener('pointerup', onPointerUp);
+      window.addEventListener('pointercancel', onPointerUp);
+
+      // Suppress the click-through navigation if the gesture was actually a drag/fling.
+      track.addEventListener(
+        'click',
+        (e) => {
+          if (wasDrag) {
+            e.preventDefault();
+            e.stopPropagation();
+            wasDrag = false;
+          }
+        },
+        true,
+      );
+
+      viewport.addEventListener('mouseenter', () => {
+        hovering = true;
+      });
+      viewport.addEventListener('mouseleave', () => {
+        hovering = false;
+        mouseX = null;
+      });
+
+      track.addEventListener('focusin', () => {
+        focusPaused = true;
+      });
+      track.addEventListener('focusout', () => {
+        focusPaused = false;
+      });
 
       toggle?.addEventListener('click', () => {
-        const paused = root.dataset.hcPaused === 'true';
-        root.dataset.hcPaused = String(!paused);
-        toggle.setAttribute('aria-pressed', String(!paused));
-        toggle.setAttribute('aria-label', !paused ? 'Resume auto-scroll' : 'Pause auto-scroll');
-        if (icon) icon.textContent = !paused ? '►' : '❚❚';
+        userPaused = !userPaused;
+        toggle.setAttribute('aria-pressed', String(userPaused));
+        toggle.setAttribute('aria-label', userPaused ? 'Resume auto-scroll' : 'Pause auto-scroll');
+        if (icon) icon.textContent = userPaused ? '►' : '❚❚';
       });
+
+      function tick(now: number): void {
+        const dt = Math.min(0.05, (now - lastTime) / 1000);
+        lastTime = now;
+
+        if (!userPaused && !focusPaused && !dragging) {
+          // Ease velocity back toward cruise speed every frame — this is
+          // the "speeds up / slows down, then settles" feel after any
+          // wheel flick or drag release, frame-rate independent.
+          const recovery = 1 - Math.pow(0.04, dt);
+          velocity += (cruiseSpeed - velocity) * recovery;
+          offset += velocity * dt;
+        }
+
+        if (halfWidth > 0) {
+          offset = ((offset % halfWidth) + halfWidth) % halfWidth;
+        }
+        track.style.transform = `translate3d(${-offset}px,0,0)`;
+
+        if (fineHover && hovering && mouseX !== null) {
+          const vpRect = viewport.getBoundingClientRect();
+          const localMouseX = mouseX - vpRect.left;
+          const radius = 230;
+          tiles.forEach((tile, i) => {
+            const renderedLeft = tileLefts[i] - offset;
+            const center = renderedLeft + tileWidths[i] / 2;
+            const dist = Math.abs(localMouseX - center);
+            const t = Math.max(0, 1 - dist / radius);
+            const eased = t * t * (3 - 2 * t); // smoothstep
+            const wrap = tile.querySelector<HTMLElement>('[data-hc-img-wrap]');
+            if (wrap) {
+              const tilt = clamp((localMouseX - center) / radius, -1, 1) * -eased * 5;
+              wrap.style.transform = `translateY(${-eased * 10}px) scale(${1 + eased * 0.09}) rotate(${tilt}deg)`;
+              wrap.style.boxShadow = `0 ${eased * 22}px ${eased * 34}px -10px rgba(0,0,0,${eased * 0.55})`;
+            }
+            tile.style.zIndex = eased > 0.04 ? '3' : '1';
+          });
+        } else {
+          tiles.forEach((tile) => {
+            const wrap = tile.querySelector<HTMLElement>('[data-hc-img-wrap]');
+            if (wrap) {
+              wrap.style.transform = '';
+              wrap.style.boxShadow = '';
+            }
+            tile.style.zIndex = '1';
+          });
+        }
+
+        requestAnimationFrame(tick);
+      }
+      requestAnimationFrame(tick);
     });
   }
 
@@ -119,6 +283,7 @@ const durationSec = Math.max(20, Math.round(trackWidthPx / PX_PER_SEC));
 
   .hc-viewport {
     overflow: hidden;
+    cursor: grab;
     -webkit-mask-image: linear-gradient(
       to right,
       transparent 0,
@@ -135,35 +300,28 @@ const durationSec = Math.max(20, Math.round(trackWidthPx / PX_PER_SEC));
     );
   }
 
+  .hero-carousel.is-dragging .hc-viewport {
+    cursor: grabbing;
+  }
+
   .hc-track {
     display: flex;
     gap: 1rem;
     width: max-content;
     margin: 0;
-    padding: 1rem 0;
+    padding: 2.75rem 0;
     list-style: none;
-    animation: hc-marquee var(--hc-duration, 60s) linear infinite;
     will-change: transform;
-  }
-
-  .hero-carousel[data-hc-paused='true'] .hc-track,
-  .hc-track:focus-within {
-    animation-play-state: paused;
-  }
-
-  @keyframes hc-marquee {
-    from {
-      transform: translate3d(0, 0, 0);
-    }
-    to {
-      transform: translate3d(-50%, 0, 0);
-    }
+    touch-action: pan-y;
+    -webkit-user-select: none;
+    user-select: none;
   }
 
   .hc-tile {
     flex: 0 0 auto;
     width: clamp(220px, 24vw, 300px);
     aspect-ratio: 3 / 4;
+    position: relative;
   }
 
   .hc-tile-link {
@@ -171,22 +329,32 @@ const durationSec = Math.max(20, Math.round(trackWidthPx / PX_PER_SEC));
     display: block;
     width: 100%;
     height: 100%;
-    overflow: hidden;
+    overflow: visible;
     cursor: pointer;
   }
 
-  .hc-tile-link img {
+  .hc-tile-img-wrap {
+    display: block;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    transform-origin: 50% 85%;
+    transition: transform 0.12s ease-out, box-shadow 0.12s ease-out;
+    box-shadow: 0 0 0 0 transparent;
+  }
+
+  .hc-tile-link:active .hc-tile-img-wrap {
+    transition: transform 0.08s ease-out;
+    filter: brightness(0.92);
+  }
+
+  .hc-tile-img-wrap img {
     width: 100%;
     height: 100%;
     object-fit: cover;
     -webkit-user-select: none;
     user-select: none;
-    transition: transform 0.6s ease;
-  }
-
-  .hc-tile-link:hover img,
-  .hc-tile-link:focus-visible img {
-    transform: scale(1.06);
+    pointer-events: none;
   }
 
   .hc-tile-overlay {
@@ -200,6 +368,7 @@ const durationSec = Math.max(20, Math.round(trackWidthPx / PX_PER_SEC));
     transform: translateY(8px);
     opacity: 0.88;
     transition: transform 0.3s ease, opacity 0.3s ease;
+    pointer-events: none;
   }
 
   .hc-tile-link:hover .hc-tile-overlay,
@@ -226,7 +395,7 @@ const durationSec = Math.max(20, Math.round(trackWidthPx / PX_PER_SEC));
     position: absolute;
     top: 0.75rem;
     left: 0.75rem;
-    z-index: 2;
+    z-index: 4;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -245,7 +414,6 @@ const durationSec = Math.max(20, Math.round(trackWidthPx / PX_PER_SEC));
 
   @media (prefers-reduced-motion: reduce) {
     .hc-track {
-      animation: none;
       overflow-x: auto;
       -webkit-overflow-scrolling: touch;
     }
