@@ -1,14 +1,20 @@
 ---
-// Full-bleed highlight reel at the top of the homepage. Picks up to 2
-// photos per non-empty discipline (favoring variety across sets), then
-// duplicates the strip once for a seamless infinite loop.
+// Full-bleed highlight reel at the top of the homepage. Pulls several
+// photos per non-empty discipline (round-robin across that discipline's
+// sets for variety), shuffles the result, then duplicates the strip
+// once for a seamless infinite loop.
+//
+// At speed, a short/predictable cycle reads as "the same 12 photos on
+// repeat" rather than infinite, no matter how seamless the loop math
+// is — so this pulls enough unique photos (PER_DISCIPLINE each) and
+// shuffles the discipline order so the repeat isn't obviously patterned.
 //
 // Motion is hand-driven in JS (requestAnimationFrame), not a CSS
 // keyframe animation: it cruises on its own, but wheel/trackpad input
 // and pointer-drag add velocity on top, and a mouse-proximity "dock
 // magnify" effect reacts to the hovered tile every frame. See the
 // <script> below for the physics.
-import { summarize } from '../data/library';
+import { summarize, type LibraryRow, type SetSummary } from '../data/library';
 import { localPhoto } from '../lib/photos';
 
 const base = import.meta.env.BASE_URL.replace(/\/$/, '');
@@ -22,12 +28,40 @@ interface Slide {
   alt: string;
 }
 
+const PER_DISCIPLINE = 5;
+
+// Round-robins across a discipline's sets (one row from each per pass)
+// so a 5-pick favors "one from every set" over "five from the biggest set".
+function pickVaried(sets: SetSummary[], n: number): LibraryRow[] {
+  const picks: LibraryRow[] = [];
+  const cursor = sets.map(() => 0);
+  let added = true;
+  while (picks.length < n && added) {
+    added = false;
+    for (let i = 0; i < sets.length && picks.length < n; i++) {
+      if (cursor[i] < sets[i].rows.length) {
+        picks.push(sets[i].rows[cursor[i]]);
+        cursor[i]++;
+        added = true;
+      }
+    }
+  }
+  return picks;
+}
+
+function shuffle<T>(arr: T[]): T[] {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
 const slides: Slide[] = [];
 for (const d of summarize()) {
   if (d.frameCount === 0) continue;
-  const picks = d.sets.length > 1 ? [d.sets[0].rows[0], d.sets[1].rows[0]] : d.sets[0].rows.slice(0, 2);
-  for (const row of picks) {
-    if (!row) continue;
+  for (const row of pickVaried(d.sets, PER_DISCIPLINE)) {
     const asset = localPhoto(row.fileId);
     if (!asset) continue;
     slides.push({
@@ -39,9 +73,10 @@ for (const d of summarize()) {
     });
   }
 }
+const shuffledSlides = shuffle(slides);
 
 // Seamless loop needs the track duplicated exactly once.
-const track = [...slides, ...slides];
+const track = [...shuffledSlides, ...shuffledSlides];
 // Idle cruise speed (px/s) when nobody's near it — fast and alive. It
 // eases down toward a slow crawl as the cursor nears a tile, but never
 // stops outright (see IDLE/BROWSE speed logic in the <script> below).
