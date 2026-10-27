@@ -1,11 +1,14 @@
 ---
 import Base from '../layouts/Base.astro';
 import DisciplineIndex from '../components/DisciplineIndex.astro';
+import HeroCarousel from '../components/HeroCarousel.astro';
 import { totals } from '../data/library';
 ---
 
 <Base title="Home" surface="ink">
-  <section class="page pt-40 pb-24">
+  <HeroCarousel />
+
+  <section class="page pt-16 pb-24">
     <p class="meta">Joydeep Mitra · Photographer · Bengaluru</p>
     <h1
       class="mt-8 font-display font-light tracking-menu leading-[0.95]"

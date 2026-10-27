@@ -1,0 +1,256 @@
+---
+// Full-bleed, auto-scrolling highlight reel at the top of the homepage.
+// Picks up to 2 photos per non-empty discipline (favoring variety across
+// sets), then duplicates the strip for a seamless infinite CSS marquee —
+// no JS animation loop, so it stays smooth under load.
+import { summarize } from '../data/library';
+import { localPhoto } from '../lib/photos';
+
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+const resolveUrl = (p: string) => (/^https?:\/\//.test(p) ? p : `${base}${p}`);
+
+interface Slide {
+  href: string;
+  thumb: string;
+  disciplineLabel: string;
+  setName: string;
+  alt: string;
+}
+
+const slides: Slide[] = [];
+for (const d of summarize()) {
+  if (d.frameCount === 0) continue;
+  const picks = d.sets.length > 1 ? [d.sets[0].rows[0], d.sets[1].rows[0]] : d.sets[0].rows.slice(0, 2);
+  for (const row of picks) {
+    if (!row) continue;
+    const asset = localPhoto(row.fileId);
+    if (!asset) continue;
+    slides.push({
+      href: `${base}/work/${d.discipline.key}`,
+      thumb: resolveUrl(asset.thumb),
+      disciplineLabel: d.discipline.label,
+      setName: row.set,
+      alt: row.altText || row.title || row.fileName,
+    });
+  }
+}
+
+// Seamless loop needs the track duplicated exactly once (translate -50%).
+const track = [...slides, ...slides];
+
+// Scale animation duration to content length so speed (px/s) stays
+// constant regardless of how many disciplines are live.
+const TILE_WIDTH = 300;
+const GAP = 16;
+const trackWidthPx = slides.length * (TILE_WIDTH + GAP);
+const PX_PER_SEC = 34;
+const durationSec = Math.max(20, Math.round(trackWidthPx / PX_PER_SEC));
+---
+
+{
+  slides.length > 0 && (
+    <section class="hero-carousel" aria-label="Featured work — select a frame to browse that section">
+      <button
+        type="button"
+        class="hc-toggle"
+        data-hc-toggle
+        aria-pressed="false"
+        aria-label="Pause auto-scroll"
+      >
+        <span data-hc-icon aria-hidden="true">
+          ❚❚
+        </span>
+      </button>
+      <div class="hc-viewport">
+        <ul class="hc-track" data-hc-track style={`--hc-duration:${durationSec}s`}>
+          {track.map((s, i) => (
+            <li class="hc-tile" aria-hidden={i >= slides.length ? 'true' : undefined}>
+              <a
+                href={s.href}
+                class="hc-tile-link"
+                tabindex={i >= slides.length ? -1 : 0}
+              >
+                <img src={s.thumb} alt={s.alt} loading={i < 6 ? 'eager' : 'lazy'} decoding="async" draggable="false" />
+                <span class="hc-tile-overlay">
+                  <span class="hc-tile-discipline font-display font-medium">{s.disciplineLabel}</span>
+                  <span class="hc-tile-set">{s.setName} →</span>
+                </span>
+              </a>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </section>
+  )
+}
+
+<script>
+  function initHeroCarousel(): void {
+    document.querySelectorAll<HTMLElement>('.hero-carousel').forEach((root) => {
+      if (root.dataset.hcInit) return;
+      root.dataset.hcInit = 'true';
+
+      const toggle = root.querySelector<HTMLButtonElement>('[data-hc-toggle]');
+      const icon = root.querySelector<HTMLElement>('[data-hc-icon]');
+
+      toggle?.addEventListener('click', () => {
+        const paused = root.dataset.hcPaused === 'true';
+        root.dataset.hcPaused = String(!paused);
+        toggle.setAttribute('aria-pressed', String(!paused));
+        toggle.setAttribute('aria-label', !paused ? 'Resume auto-scroll' : 'Pause auto-scroll');
+        if (icon) icon.textContent = !paused ? '►' : '❚❚';
+      });
+    });
+  }
+
+  initHeroCarousel();
+  document.addEventListener('astro:page-load', initHeroCarousel);
+</script>
+
+<style>
+  .hero-carousel {
+    position: relative;
+    width: 100vw;
+    margin-left: calc(50% - 50vw);
+    overflow: hidden;
+    background: var(--ink-soft);
+    border-bottom: 1px solid var(--rule);
+  }
+
+  .hc-viewport {
+    overflow: hidden;
+    -webkit-mask-image: linear-gradient(
+      to right,
+      transparent 0,
+      #000 clamp(1rem, 4vw, 4rem),
+      #000 calc(100% - clamp(1rem, 4vw, 4rem)),
+      transparent 100%
+    );
+    mask-image: linear-gradient(
+      to right,
+      transparent 0,
+      #000 clamp(1rem, 4vw, 4rem),
+      #000 calc(100% - clamp(1rem, 4vw, 4rem)),
+      transparent 100%
+    );
+  }
+
+  .hc-track {
+    display: flex;
+    gap: 1rem;
+    width: max-content;
+    margin: 0;
+    padding: 1rem 0;
+    list-style: none;
+    animation: hc-marquee var(--hc-duration, 60s) linear infinite;
+    will-change: transform;
+  }
+
+  .hero-carousel[data-hc-paused='true'] .hc-track,
+  .hc-track:focus-within {
+    animation-play-state: paused;
+  }
+
+  @keyframes hc-marquee {
+    from {
+      transform: translate3d(0, 0, 0);
+    }
+    to {
+      transform: translate3d(-50%, 0, 0);
+    }
+  }
+
+  .hc-tile {
+    flex: 0 0 auto;
+    width: clamp(220px, 24vw, 300px);
+    aspect-ratio: 3 / 4;
+  }
+
+  .hc-tile-link {
+    position: relative;
+    display: block;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    cursor: pointer;
+  }
+
+  .hc-tile-link img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    -webkit-user-select: none;
+    user-select: none;
+    transition: transform 0.6s ease;
+  }
+
+  .hc-tile-link:hover img,
+  .hc-tile-link:focus-visible img {
+    transform: scale(1.06);
+  }
+
+  .hc-tile-overlay {
+    position: absolute;
+    inset: auto 0 0 0;
+    padding: 1rem 1rem 1.1rem;
+    background: linear-gradient(to top, rgba(11, 11, 12, 0.88), transparent 70%);
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    transform: translateY(8px);
+    opacity: 0.88;
+    transition: transform 0.3s ease, opacity 0.3s ease;
+  }
+
+  .hc-tile-link:hover .hc-tile-overlay,
+  .hc-tile-link:focus-visible .hc-tile-overlay {
+    transform: translateY(0);
+    opacity: 1;
+  }
+
+  .hc-tile-discipline {
+    font-size: 1.05rem;
+    color: var(--paper);
+    letter-spacing: 0.01em;
+  }
+
+  .hc-tile-set {
+    font-size: var(--t-meta);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--signal);
+  }
+
+  .hc-toggle {
+    all: unset;
+    position: absolute;
+    top: 0.75rem;
+    left: 0.75rem;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    font-size: 0.65rem;
+    color: var(--paper);
+    background: rgba(11, 11, 12, 0.55);
+    cursor: pointer;
+  }
+
+  .hc-toggle:hover,
+  .hc-toggle:focus-visible {
+    color: var(--signal);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .hc-track {
+      animation: none;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    .hc-toggle {
+      display: none;
+    }
+  }
+</style>
