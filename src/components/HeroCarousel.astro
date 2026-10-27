@@ -42,7 +42,10 @@ for (const d of summarize()) {
 
 // Seamless loop needs the track duplicated exactly once.
 const track = [...slides, ...slides];
-const CRUISE_PX_PER_SEC = 34;
+// Idle cruise speed (px/s) when nobody's near it — fast and alive. It
+// eases down toward a slow crawl as the cursor nears a tile, but never
+// stops outright (see IDLE/BROWSE speed logic in the <script> below).
+const IDLE_PX_PER_SEC = 130;
 ---
 
 {
@@ -60,7 +63,7 @@ const CRUISE_PX_PER_SEC = 34;
         </span>
       </button>
       <div class="hc-viewport" data-hc-viewport>
-        <ul class="hc-track" data-hc-track data-hc-speed={CRUISE_PX_PER_SEC}>
+        <ul class="hc-track" data-hc-track data-hc-speed={IDLE_PX_PER_SEC}>
           {track.map((s, i) => (
             <li class="hc-tile" aria-hidden={i >= slides.length ? 'true' : undefined}>
               <a href={s.href} class="hc-tile-link" tabindex={i >= slides.length ? -1 : 0}>
@@ -112,11 +115,16 @@ const CRUISE_PX_PER_SEC = 34;
       measure();
       window.addEventListener('resize', measure);
 
-      const cruiseSpeed = -parseFloat(track.dataset.hcSpeed || '34'); // px/s, leftward
-      let velocity = cruiseSpeed;
+      // Fast when nobody's near it, slows to a readable crawl the closer
+      // the cursor gets to a tile — never a hard stop, so it never reads
+      // as "frozen". idleSpeed is configurable via the component; browseSpeed
+      // is a fixed fraction of it so one knob controls the whole range.
+      const idleSpeed = -parseFloat(track.dataset.hcSpeed || '130'); // px/s, leftward
+      const browseSpeed = idleSpeed * 0.1;
+      let velocity = idleSpeed;
+      let attention = 0; // 0 = idle/far, 1 = right on a tile; drives target speed
       let offset = 0; // monotonic internal position; rendered value is wrapped into [0, halfWidth)
       let userPaused = false;
-      let focusPaused = false;
       let dragging = false;
       let wasDrag = false;
       let lastTime = performance.now();
@@ -156,6 +164,14 @@ const CRUISE_PX_PER_SEC = 34;
       function onPointerMove(e: PointerEvent): void {
         mouseX = e.clientX;
         if (!dragging) return;
+        // Safety net: if the button isn't actually held anymore (release
+        // happened somewhere that didn't deliver a pointerup — e.g. outside
+        // the window), treat this move as the release instead of getting
+        // stuck in "dragging" forever.
+        if (e.buttons === 0) {
+          onPointerUp();
+          return;
+        }
         const dx = e.clientX - dragStartClientX;
         dragMoved = Math.max(dragMoved, Math.abs(dx));
         if (dragMoved > 6) wasDrag = true;
@@ -173,11 +189,25 @@ const CRUISE_PX_PER_SEC = 34;
           const dt = (last.t - first.t) / 1000;
           if (dt > 0.01) velocity = clamp((first.x - last.x) / dt, -2400, 2400);
         }
+        // Mousedown focuses the <a> under the cursor as a native side
+        // effect, even when the gesture turns out to be a drag. Nothing
+        // else would blur it afterward, so clear it explicitly — otherwise
+        // the strip would sit at the slow "focused" speed indefinitely
+        // instead of recovering to full idle speed.
+        if (wasDrag && document.activeElement instanceof HTMLElement && track.contains(document.activeElement)) {
+          document.activeElement.blur();
+        }
       }
       track.addEventListener('pointerdown', onPointerDown);
       window.addEventListener('pointermove', onPointerMove);
       window.addEventListener('pointerup', onPointerUp);
       window.addEventListener('pointercancel', onPointerUp);
+      // More safety nets: losing window focus or tab visibility mid-drag
+      // (alt-tab, switching apps) must never leave the carousel stuck.
+      window.addEventListener('blur', onPointerUp);
+      document.addEventListener('visibilitychange', () => {
+        if (document.hidden) onPointerUp();
+      });
 
       // Suppress the click-through navigation if the gesture was actually a drag/fling.
       track.addEventListener(
@@ -200,13 +230,6 @@ const CRUISE_PX_PER_SEC = 34;
         mouseX = null;
       });
 
-      track.addEventListener('focusin', () => {
-        focusPaused = true;
-      });
-      track.addEventListener('focusout', () => {
-        focusPaused = false;
-      });
-
       toggle?.addEventListener('click', () => {
         userPaused = !userPaused;
         toggle.setAttribute('aria-pressed', String(userPaused));
@@ -218,12 +241,27 @@ const CRUISE_PX_PER_SEC = 34;
         const dt = Math.min(0.05, (now - lastTime) / 1000);
         lastTime = now;
 
-        if (!userPaused && !focusPaused && !dragging) {
-          // Ease velocity back toward cruise speed every frame — this is
-          // the "speeds up / slows down, then settles" feel after any
-          // wheel flick or drag release, frame-rate independent.
+        if (!userPaused && !dragging) {
+          // A keyboard-focused tile slows the strip (soft, like mouse
+          // proximity) rather than hard-pausing it. A hard pause-on-focus
+          // was tried and removed: dragging focuses an <a> as a native
+          // side effect of mousedown, and since nothing blurs it again
+          // just from moving the mouse away, that focus can persist
+          // indefinitely — a hard pause gated on it froze the carousel
+          // permanently after any drag. Soft slowdown has the same
+          // failure mode cost it near-zero: worst case it cruises at
+          // browseSpeed forever, which still visibly moves.
+          const tileFocused = document.activeElement instanceof Node && track.contains(document.activeElement);
+          const effectiveAttention = Math.max(attention, tileFocused ? 1 : 0);
+          // Target speed: fast cruise by default, easing down toward a
+          // slow (but never fully stopped) crawl the closer the cursor
+          // gets to a tile. Recomputed every frame from `attention` below.
+          const targetSpeed = idleSpeed + (browseSpeed - idleSpeed) * effectiveAttention;
+          // Ease velocity toward that target every frame — the "speeds up
+          // / slows down, then settles" feel after any wheel flick, drag
+          // release, or proximity change, frame-rate independent.
           const recovery = 1 - Math.pow(0.04, dt);
-          velocity += (cruiseSpeed - velocity) * recovery;
+          velocity += (targetSpeed - velocity) * recovery;
           offset += velocity * dt;
         }
 
@@ -236,12 +274,14 @@ const CRUISE_PX_PER_SEC = 34;
           const vpRect = viewport.getBoundingClientRect();
           const localMouseX = mouseX - vpRect.left;
           const radius = 230;
+          let frameAttention = 0;
           tiles.forEach((tile, i) => {
             const renderedLeft = tileLefts[i] - offset;
             const center = renderedLeft + tileWidths[i] / 2;
             const dist = Math.abs(localMouseX - center);
             const t = Math.max(0, 1 - dist / radius);
             const eased = t * t * (3 - 2 * t); // smoothstep
+            frameAttention = Math.max(frameAttention, eased);
             const wrap = tile.querySelector<HTMLElement>('[data-hc-img-wrap]');
             if (wrap) {
               const tilt = clamp((localMouseX - center) / radius, -1, 1) * -eased * 5;
@@ -250,7 +290,9 @@ const CRUISE_PX_PER_SEC = 34;
             }
             tile.style.zIndex = eased > 0.04 ? '3' : '1';
           });
+          attention = frameAttention;
         } else {
+          attention = 0;
           tiles.forEach((tile) => {
             const wrap = tile.querySelector<HTMLElement>('[data-hc-img-wrap]');
             if (wrap) {
