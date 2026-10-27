@@ -45,7 +45,9 @@ const track = [...slides, ...slides];
 // Idle cruise speed (px/s) when nobody's near it — fast and alive. It
 // eases down toward a slow crawl as the cursor nears a tile, but never
 // stops outright (see IDLE/BROWSE speed logic in the <script> below).
-const IDLE_PX_PER_SEC = 130;
+// browseSpeed in that script is a fraction of this, so bumping this one
+// knob scales the whole range.
+const IDLE_PX_PER_SEC = 1300;
 ---
 
 {
@@ -137,7 +139,7 @@ const IDLE_PX_PER_SEC = 130;
       function onWheel(e: WheelEvent): void {
         const delta = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
         e.preventDefault();
-        velocity = clamp(velocity + delta * 2.4, -1600, 1600);
+        velocity = clamp(velocity + delta * 6, -7000, 7000);
       }
       viewport.addEventListener('wheel', onWheel, { passive: false });
 
@@ -187,7 +189,7 @@ const IDLE_PX_PER_SEC = 130;
           const first = dragSamples[0];
           const last = dragSamples[dragSamples.length - 1];
           const dt = (last.t - first.t) / 1000;
-          if (dt > 0.01) velocity = clamp((first.x - last.x) / dt, -2400, 2400);
+          if (dt > 0.01) velocity = clamp((first.x - last.x) / dt, -9000, 9000);
         }
         // Mousedown focuses the <a> under the cursor as a native side
         // effect, even when the gesture turns out to be a drag. Nothing
