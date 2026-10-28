@@ -20,35 +20,131 @@ const { discipline, set: setSlug } = Astro.params;
 const summary = getDiscipline(discipline as any);
 const set = summary ? getSet(discipline as any, setSlug!) : undefined;
 if (!summary || !set) throw new Error(`Unknown route: ${discipline}/${setSlug}`);
+
+// Flattened tour order across every (discipline, set) pair, in the same
+// order the discipline pages list them. Drives "keep scrolling" so the
+// page continues into the next folder instead of stopping here.
+const tourOrder: { discipline: string; set: string }[] = [];
+for (const d of DISCIPLINES) {
+  const s = getDiscipline(d.key);
+  if (!s) continue;
+  for (const st of s.sets) tourOrder.push({ discipline: d.key, set: st.slug });
+}
+const tourIndex = tourOrder.findIndex((t) => t.discipline === discipline && t.set === setSlug);
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 ---
 
 <Base title={`${set.name} — ${summary.discipline.label}`} surface="ink">
-  <section class="page pt-40 pb-16">
-    <p class="meta">
-      <a href={`${import.meta.env.BASE_URL}/`} class="hover:text-signal">Home</a>
-      ·
-      <a
-        href={`${import.meta.env.BASE_URL}/work/${summary.discipline.key}`}
-        class="hover:text-signal"
-      >
-        {summary.discipline.label}
-      </a>
-      · {set.name}
-    </p>
-    <h1 class="mt-6 font-display font-light text-h1 tracking-menu leading-none">{set.name}</h1>
-    <p class="mt-4 meta tabular-nums">
-      {set.frameCount} frames &nbsp;·&nbsp; {set.year ?? '—'}
-    </p>
-  </section>
+  <div id="set-feed">
+    <div class="set-block" data-discipline={discipline} data-set={setSlug}>
+      <section class="page pt-40 pb-16 set-header">
+        <p class="meta">
+          <a href={`${base}/`} class="hover:text-signal">Home</a>
+          ·
+          <a href={`${base}/work/${summary.discipline.key}`} class="hover:text-signal">
+            {summary.discipline.label}
+          </a>
+          · {set.name}
+        </p>
+        <h1 class="mt-6 font-display font-light text-h1 tracking-menu leading-none">{set.name}</h1>
+        <p class="mt-4 meta tabular-nums">
+          {set.frameCount} frames &nbsp;·&nbsp; {set.year ?? '—'}
+        </p>
+      </section>
 
-  <section class="page pb-24">
-    <Lightbox
-      images={set.rows.map((row) => ({
-        fileId: row.fileId,
-        alt: row.altText || row.title || row.fileName,
-        caption: row.caption || row.title,
-      }))}
-      columns="repeat(auto-fill, minmax(280px, 1fr))"
-    />
-  </section>
+      <section class="page pb-24">
+        <Lightbox
+          images={set.rows.map((row) => ({
+            fileId: row.fileId,
+            alt: row.altText || row.title || row.fileName,
+            caption: row.caption || row.title,
+          }))}
+          columns="repeat(auto-fill, minmax(280px, 1fr))"
+        />
+      </section>
+    </div>
+  </div>
+
+  <div id="feed-sentinel" aria-hidden="true"></div>
+
+  <div id="feed-end" class="page pb-32 hidden" data-feed-end>
+    <div class="border-t border-rule pt-10 text-center">
+      <p class="meta text-signal">End of the archive</p>
+      <p class="mt-3 text-muted">
+        You&rsquo;ve scrolled through every set.
+        <a href={`${base}/`} class="underline decoration-signal underline-offset-4">Back to home</a>
+      </p>
+    </div>
+  </div>
+
+  <script define:vars={{ base, tourOrder, tourIndex }}>
+    const feed = document.getElementById('set-feed');
+    const feedEnd = document.getElementById('feed-end');
+    const sentinel = document.getElementById('feed-sentinel');
+    let cursor = tourIndex;
+    let loading = false;
+    let finished = tourOrder.length <= 1 || tourIndex === -1;
+
+    function buildUrl(entry) {
+      return `${base}/work/${entry.discipline}/${entry.set}/`;
+    }
+
+    function revealEnd() {
+      feedEnd?.classList.remove('hidden');
+    }
+
+    async function loadNext() {
+      if (loading || finished) return;
+      loading = true;
+      cursor = (cursor + 1) % tourOrder.length;
+      if (cursor === tourIndex) {
+        finished = true;
+        loading = false;
+        revealEnd();
+        return;
+      }
+      const entry = tourOrder[cursor];
+      try {
+        const res = await fetch(buildUrl(entry));
+        if (!res.ok) throw new Error(`status ${res.status}`);
+        const html = await res.text();
+        const doc = new DOMParser().parseFromString(html, 'text/html');
+        const block = doc.querySelector('.set-block');
+        if (!block) throw new Error('missing .set-block');
+        const imported = document.importNode(block, true);
+        imported.querySelectorAll('script').forEach((s) => {
+          if (s.type !== 'application/json') s.remove();
+        });
+        const header = imported.querySelector('.set-header');
+        if (header) {
+          header.classList.remove('pt-40');
+          header.classList.add('pt-24', 'mt-24', 'border-t', 'border-rule');
+        }
+        feed?.appendChild(imported);
+        document.dispatchEvent(new Event('astro:page-load'));
+      } catch (err) {
+        finished = true;
+      } finally {
+        loading = false;
+      }
+    }
+
+    async function maybeLoadMore() {
+      if (loading || finished || !sentinel) return;
+      const rect = sentinel.getBoundingClientRect();
+      if (rect.top > window.innerHeight + 1200) return;
+      await loadNext();
+      requestAnimationFrame(maybeLoadMore);
+    }
+
+    if (sentinel) {
+      const observer = new IntersectionObserver(
+        (entries) => {
+          if (entries.some((e) => e.isIntersecting)) maybeLoadMore();
+        },
+        { rootMargin: '1200px 0px 1200px 0px' },
+      );
+      observer.observe(sentinel);
+    }
+  </script>
 </Base>
