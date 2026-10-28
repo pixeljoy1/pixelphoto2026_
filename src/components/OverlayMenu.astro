@@ -37,11 +37,11 @@ const yearSpan = (from?: number, to?: number) =>
         items.map((d, i) => (
           <li
             style={`--stagger:${i * 30}ms`}
-            class="menu-item group flex items-baseline justify-between gap-6 border-b border-rule py-3"
+            class="menu-item group flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-1 sm:gap-6 border-b border-rule py-3"
           >
             <a
               href={`${import.meta.env.BASE_URL}/work/${d.discipline.key}`}
-              class="flex-1 font-display font-light text-menu tracking-menu leading-[1.05] transition-colors duration-200 group-hover:text-signal"
+              class="min-w-0 font-display font-light text-[2.1rem] sm:text-menu tracking-menu leading-[1.05] transition-colors duration-200 group-hover:text-signal break-words"
             >
               {d.discipline.label}
             </a>
