@@ -178,7 +178,7 @@ const IDLE_PX_PER_SEC = 650; // scaled down further on coarse/touch pointers in 
       function onWheel(e: WheelEvent): void {
         const delta = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
         e.preventDefault();
-        velocity = clamp(velocity + delta * 6, -7000, 7000);
+        velocity = clamp(velocity + delta * 6, -4500, 4500);
       }
       viewport.addEventListener('wheel', onWheel, { passive: false });
 
@@ -251,7 +251,7 @@ const IDLE_PX_PER_SEC = 650; // scaled down further on coarse/touch pointers in 
           const first = dragSamples[0];
           const last = dragSamples[dragSamples.length - 1];
           const dt = (last.t - first.t) / 1000;
-          if (dt > 0.01) velocity = clamp((first.x - last.x) / dt, -9000, 9000);
+          if (dt > 0.01) velocity = clamp((first.x - last.x) / dt, -6000, 6000);
         }
         // Mousedown focuses the <a> under the cursor as a native side
         // effect, even when the gesture turns out to be a drag. Nothing
@@ -323,8 +323,13 @@ const IDLE_PX_PER_SEC = 650; // scaled down further on coarse/touch pointers in 
           const targetSpeed = idleSpeed + (browseSpeed - idleSpeed) * effectiveAttention;
           // Ease velocity toward that target every frame — the "speeds up
           // / slows down, then settles" feel after any wheel flick, drag
-          // release, or proximity change, frame-rate independent.
-          const recovery = 1 - Math.pow(0.04, dt);
+          // release, or proximity change, frame-rate independent. Tuned to
+          // reach ~99% of the way back within half a second: a big flick
+          // used to leave a visible mis-direction/wrong-speed excursion
+          // for well over a second before it was fully gone, which read
+          // as "it just spins whichever way you last left it" rather than
+          // transient momentum.
+          const recovery = 1 - Math.pow(0.0005, dt);
           velocity += (targetSpeed - velocity) * recovery;
           offset += velocity * dt;
         }
