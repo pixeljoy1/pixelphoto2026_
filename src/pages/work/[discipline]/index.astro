@@ -19,6 +19,7 @@ const yearSpan = (from?: number, to?: number) =>
 <Base title={summary.discipline.label} surface="ink">
   <section class="page pt-40 pb-12">
     <p class="meta">
+      <a href={`${import.meta.env.BASE_URL}/`} class="hover:text-signal">Home</a> ·
       <a href={`${import.meta.env.BASE_URL}/work`} class="hover:text-signal">Work</a> ·
       {summary.discipline.label}
     </p>

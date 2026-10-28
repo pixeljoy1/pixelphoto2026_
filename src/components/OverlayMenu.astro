@@ -21,6 +21,15 @@ const yearSpan = (from?: number, to?: number) =>
   aria-label="Site navigation"
   class="fixed inset-0 m-0 h-screen w-screen max-h-none max-w-none overflow-hidden bg-ink-soft text-paper p-0 open:flex flex-col"
 >
+  <button
+    type="button"
+    id="menu-close"
+    aria-label="Close menu"
+    class="absolute top-5 right-5 z-10 flex items-center gap-3 px-3 py-2 meta text-paper hover:text-signal"
+  >
+    <span data-menu-close-icon aria-hidden="true">✕</span>
+    Close
+  </button>
   <div class="page flex-1 flex flex-col justify-center py-24">
     <p class="meta mb-8">Disciplines</p>
     <ul class="flex flex-col gap-2" id="menu-items">
@@ -108,6 +117,7 @@ const yearSpan = (from?: number, to?: number) =>
 <script>
   const dialog = document.getElementById('site-menu') as HTMLDialogElement | null;
   const toggle = document.getElementById('menu-toggle') as HTMLButtonElement | null;
+  const closeBtn = document.getElementById('menu-close') as HTMLButtonElement | null;
   const label = toggle?.querySelector('[data-menu-label]');
 
   const setLabel = (open: boolean) => {
@@ -138,6 +148,8 @@ const yearSpan = (from?: number, to?: number) =>
       });
     }
   });
+
+  closeBtn?.addEventListener('click', () => dialog?.close());
 
   dialog?.addEventListener('close', () => setLabel(false));
 

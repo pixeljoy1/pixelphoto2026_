@@ -82,7 +82,7 @@ const track = [...shuffledSlides, ...shuffledSlides];
 // stops outright (see IDLE/BROWSE speed logic in the <script> below).
 // browseSpeed in that script is a fraction of this, so bumping this one
 // knob scales the whole range.
-const IDLE_PX_PER_SEC = 1300;
+const IDLE_PX_PER_SEC = 650; // scaled down further on coarse/touch pointers in the script below
 ---
 
 {
@@ -136,6 +136,7 @@ const IDLE_PX_PER_SEC = 1300;
       if (reduceMotion) return; // CSS fallback: plain scrollable row, no JS motion.
 
       const fineHover = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+      const isCoarsePointer = window.matchMedia('(pointer: coarse)').matches;
 
       const tiles = Array.from(track.querySelectorAll<HTMLLIElement>('.hc-tile'));
       const halfCount = tiles.length / 2; // track = [items, items]
@@ -156,7 +157,10 @@ const IDLE_PX_PER_SEC = 1300;
       // the cursor gets to a tile — never a hard stop, so it never reads
       // as "frozen". idleSpeed is configurable via the component; browseSpeed
       // is a fixed fraction of it so one knob controls the whole range.
-      const idleSpeed = -parseFloat(track.dataset.hcSpeed || '130'); // px/s, leftward
+      // Coarse/touch pointers (mobile) get a further reduction — there's no
+      // hover-to-slow-down there, so the configured speed is the only pace
+      // a touch user ever sees, and the full desktop pace read as too fast.
+      const idleSpeed = -parseFloat(track.dataset.hcSpeed || '130') * (isCoarsePointer ? 0.45 : 1); // px/s, leftward
       const browseSpeed = idleSpeed * 0.1;
       let velocity = idleSpeed;
       let attention = 0; // 0 = idle/far, 1 = right on a tile; drives target speed
@@ -180,9 +184,19 @@ const IDLE_PX_PER_SEC = 1300;
 
       // --- Pointer drag: grab-and-fling, like a physical reel. ---
       let dragStartClientX = 0;
+      let dragStartClientY = 0;
+      let dragStartTime = 0;
+      let dragPointerType = 'mouse';
       let dragStartOffset = 0;
       let dragSamples: { t: number; x: number }[] = [];
       let dragMoved = 0;
+
+      // On touch, a brief brush while scrolling the page past the carousel
+      // — or just lifting a finger a little off-axis — must not read as
+      // "tap, navigate". Require a tighter, more deliberate gesture: total
+      // movement under this, released quickly, or it's not a tap.
+      const TOUCH_TAP_MAX_MOVE = 10; // px, measured in any direction
+      const TOUCH_TAP_MAX_DURATION = 300; // ms
 
       function onPointerDown(e: PointerEvent): void {
         dragging = true;
@@ -193,6 +207,9 @@ const IDLE_PX_PER_SEC = 1300;
         // click-to-navigate. window-level pointermove/pointerup already
         // track the drag past the element's own bounds without it.
         dragStartClientX = e.clientX;
+        dragStartClientY = e.clientY;
+        dragStartTime = performance.now();
+        dragPointerType = e.pointerType;
         dragStartOffset = offset;
         dragSamples = [{ t: performance.now(), x: e.clientX }];
         velocity = 0;
@@ -210,8 +227,13 @@ const IDLE_PX_PER_SEC = 1300;
           return;
         }
         const dx = e.clientX - dragStartClientX;
+        const dy = e.clientY - dragStartClientY;
         dragMoved = Math.max(dragMoved, Math.abs(dx));
-        if (dragMoved > 6) wasDrag = true;
+        if (dragPointerType === 'touch') {
+          if (Math.hypot(dx, dy) > TOUCH_TAP_MAX_MOVE) wasDrag = true;
+        } else if (dragMoved > 6) {
+          wasDrag = true;
+        }
         offset = dragStartOffset - dx;
         dragSamples.push({ t: performance.now(), x: e.clientX });
         if (dragSamples.length > 6) dragSamples.shift();
@@ -220,6 +242,11 @@ const IDLE_PX_PER_SEC = 1300;
         if (!dragging) return;
         dragging = false;
         root.classList.remove('is-dragging');
+        // A touch that lingered too long before release isn't a crisp tap
+        // either, even if it barely moved — require both conditions.
+        if (dragPointerType === 'touch' && performance.now() - dragStartTime > TOUCH_TAP_MAX_DURATION) {
+          wasDrag = true;
+        }
         if (dragSamples.length >= 2) {
           const first = dragSamples[0];
           const last = dragSamples[dragSamples.length - 1];
