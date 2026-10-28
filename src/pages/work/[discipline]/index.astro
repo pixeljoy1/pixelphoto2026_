@@ -160,5 +160,12 @@ const order = DISCIPLINES.map((d) => d.key);
       );
       observer.observe(sentinel);
     }
+
+    // Lets the lightbox pull in the next discipline on demand when someone
+    // reaches the end of a gallery before scrolling has loaded it yet.
+    window.pixeljoyEnsureNextSection = async function () {
+      while (loading) await new Promise((r) => setTimeout(r, 50));
+      if (!finished) await loadNext();
+    };
   </script>
 </Base>

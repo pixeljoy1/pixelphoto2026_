@@ -84,22 +84,16 @@ const payload = available.map((r) => ({
       <path d="M6 6l12 12M18 6L6 18" stroke-linecap="round" />
     </svg>
   </button>
-  {
-    images.length > 1 && (
-      <>
-        <button type="button" class="lightbox-btn lightbox-prev" data-lightbox-prev aria-label="Previous image">
-          <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M15 6l-6 6 6 6" stroke-linecap="round" stroke-linejoin="round" />
-          </svg>
-        </button>
-        <button type="button" class="lightbox-btn lightbox-next" data-lightbox-next aria-label="Next image">
-          <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M9 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round" />
-          </svg>
-        </button>
-      </>
-    )
-  }
+  <button type="button" class="lightbox-btn lightbox-prev" data-lightbox-prev aria-label="Previous image">
+    <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M15 6l-6 6 6 6" stroke-linecap="round" stroke-linejoin="round" />
+    </svg>
+  </button>
+  <button type="button" class="lightbox-btn lightbox-next" data-lightbox-next aria-label="Next image">
+    <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M9 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round" />
+    </svg>
+  </button>
   <div class="lightbox-meta">
     <span class="lightbox-caption" data-lightbox-caption></span>
     <span class="lightbox-counter" data-lightbox-counter></span>
@@ -141,9 +135,48 @@ const payload = available.map((r) => ({
         pre.src = data.full;
       }
 
+      // Crossing a set's own boundary continues into the next (or previous)
+      // gallery on the page rather than just wrapping back on itself — the
+      // lightbox equivalent of the page's "keep scrolling" continuation.
+      function siblingRoots(): HTMLElement[] {
+        return Array.from(document.querySelectorAll<HTMLElement>('[data-lightbox-root]'));
+      }
+
+      function tryGoToNeighbor(direction: 1 | -1): boolean {
+        const roots = siblingRoots();
+        const idx = roots.indexOf(root);
+        if (idx === -1) return false;
+        const neighbor = roots[idx + direction] as
+          | (HTMLElement & { __lightboxApi?: { open: (i: number) => void; imageCount: () => number } })
+          | undefined;
+        if (neighbor?.__lightboxApi) {
+          close();
+          neighbor.__lightboxApi.open(direction === 1 ? 0 : neighbor.__lightboxApi.imageCount() - 1);
+          return true;
+        }
+        return false;
+      }
+
+      async function crossBoundary(direction: 1 | -1): Promise<boolean> {
+        if (tryGoToNeighbor(direction)) return true;
+        const ensureMore = (window as any).pixeljoyEnsureNextSection;
+        if (direction === 1 && typeof ensureMore === 'function') {
+          await ensureMore();
+          if (tryGoToNeighbor(direction)) return true;
+        }
+        return false;
+      }
+
       function show(i: number, skipFade = false) {
         if (images.length === 0) return;
-        currentIndex = (i + images.length) % images.length;
+        if (i < 0 || i >= images.length) {
+          const direction: 1 | -1 = i < 0 ? -1 : 1;
+          crossBoundary(direction).then((moved) => {
+            if (!moved) show(((i % images.length) + images.length) % images.length, skipFade);
+          });
+          return;
+        }
+        currentIndex = i;
         const data = images[currentIndex];
         if (!imgEl || !captionEl || !counterEl) return;
 
@@ -189,6 +222,11 @@ const payload = available.map((r) => ({
         lastFocused?.focus();
       }
 
+      (root as HTMLElement & { __lightboxApi?: unknown }).__lightboxApi = {
+        open,
+        imageCount: () => images.length,
+      };
+
       tiles.forEach((tile) => {
         tile.addEventListener('click', () => {
           const idx = Number(tile.dataset.index ?? '0');
@@ -219,7 +257,7 @@ const payload = available.map((r) => ({
       }
 
       function onTouchEnd(e: TouchEvent) {
-        if (images.length < 2 || e.changedTouches.length !== 1) return;
+        if (images.length < 1 || e.changedTouches.length !== 1) return;
         const dx = e.changedTouches[0].clientX - touchStartX;
         const dy = e.changedTouches[0].clientY - touchStartY;
         if (Date.now() - touchStartTime > SWIPE_MAX_DURATION) return;

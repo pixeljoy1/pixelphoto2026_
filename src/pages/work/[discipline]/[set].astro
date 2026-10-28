@@ -146,5 +146,12 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
       );
       observer.observe(sentinel);
     }
+
+    // Lets the lightbox pull in the next folder on demand when someone
+    // reaches the end of a gallery before scrolling has loaded it yet.
+    window.pixeljoyEnsureNextSection = async function () {
+      while (loading) await new Promise((r) => setTimeout(r, 50));
+      if (!finished) await loadNext();
+    };
   </script>
 </Base>
