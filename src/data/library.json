@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-06T15:57:21.947Z",
+  "generatedAt": "2026-11-06T17:00:11.087Z",
   "source": "csv",
   "mode": "draft",
   "rows": [
@@ -1993,6 +1993,18 @@
       "onSite": true,
       "onSiteExplicitNo": false,
       "title": "Sadr Region (IC 1318 / Sh2-108), Cygnus"
+    },
+    {
+      "id": 181,
+      "category": "ASTRO",
+      "set": "Deep sky",
+      "year": "2026",
+      "fileName": "M31_test1.2__signed.jpg",
+      "fileId": "11cEoKRclr1FMSxjw2S15FaAt_JQWILMd",
+      "state": "EXPORTED",
+      "onSite": true,
+      "onSiteExplicitNo": false,
+      "title": "Andromeda Galaxy (M31)"
     }
   ]
 }
