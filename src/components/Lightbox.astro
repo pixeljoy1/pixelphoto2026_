@@ -84,22 +84,16 @@ const payload = available.map((r) => ({
       <path d="M6 6l12 12M18 6L6 18" stroke-linecap="round" />
     </svg>
   </button>
-  {
-    images.length > 1 && (
-      <>
-        <button type="button" class="lightbox-btn lightbox-prev" data-lightbox-prev aria-label="Previous image">
-          <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M15 6l-6 6 6 6" stroke-linecap="round" stroke-linejoin="round" />
-          </svg>
-        </button>
-        <button type="button" class="lightbox-btn lightbox-next" data-lightbox-next aria-label="Next image">
-          <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M9 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round" />
-          </svg>
-        </button>
-      </>
-    )
-  }
+  <button type="button" class="lightbox-btn lightbox-prev" data-lightbox-prev aria-label="Previous image">
+    <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M15 6l-6 6 6 6" stroke-linecap="round" stroke-linejoin="round" />
+    </svg>
+  </button>
+  <button type="button" class="lightbox-btn lightbox-next" data-lightbox-next aria-label="Next image">
+    <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M9 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round" />
+    </svg>
+  </button>
   <div class="lightbox-meta">
     <span class="lightbox-caption" data-lightbox-caption></span>
     <span class="lightbox-counter" data-lightbox-counter></span>
@@ -141,8 +135,32 @@ const payload = available.map((r) => ({
         pre.src = data.full;
       }
 
+      // Crossing a set's own boundary moves into the next (or previous) set
+      // already on this page — e.g. Deep sky → Lunar on the Astro page —
+      // instead of looping back over the current set's own photos first.
+      // Scoped to [data-lightbox-root]s present on THIS page only, so it
+      // never reaches into another discipline's page.
+      function tryGoToNeighbor(direction: 1 | -1): boolean {
+        const roots = Array.from(document.querySelectorAll<HTMLElement>('[data-lightbox-root]'));
+        if (roots.length < 2) return false;
+        const idx = roots.indexOf(root);
+        if (idx === -1) return false;
+        const neighbor = roots[(idx + direction + roots.length) % roots.length] as
+          | (HTMLElement & { __lightboxApi?: { open: (i: number) => void; imageCount: () => number } })
+          | undefined;
+        if (neighbor?.__lightboxApi) {
+          close();
+          neighbor.__lightboxApi.open(direction === 1 ? 0 : neighbor.__lightboxApi.imageCount() - 1);
+          return true;
+        }
+        return false;
+      }
+
       function show(i: number, skipFade = false) {
         if (images.length === 0) return;
+        if (i < 0 || i >= images.length) {
+          if (tryGoToNeighbor(i < 0 ? -1 : 1)) return;
+        }
         currentIndex = (i + images.length) % images.length;
         const data = images[currentIndex];
         if (!imgEl || !captionEl || !counterEl) return;
@@ -189,6 +207,11 @@ const payload = available.map((r) => ({
         lastFocused?.focus();
       }
 
+      (root as HTMLElement & { __lightboxApi?: unknown }).__lightboxApi = {
+        open,
+        imageCount: () => images.length,
+      };
+
       tiles.forEach((tile) => {
         tile.addEventListener('click', () => {
           const idx = Number(tile.dataset.index ?? '0');
@@ -219,7 +242,7 @@ const payload = available.map((r) => ({
       }
 
       function onTouchEnd(e: TouchEvent) {
-        if (images.length < 2 || e.changedTouches.length !== 1) return;
+        if (images.length < 1 || e.changedTouches.length !== 1) return;
         const dx = e.changedTouches[0].clientX - touchStartX;
         const dy = e.changedTouches[0].clientY - touchStartY;
         if (Date.now() - touchStartTime > SWIPE_MAX_DURATION) return;
