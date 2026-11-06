@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-06T17:00:11.087Z",
+  "generatedAt": "2026-11-06T18:32:16.907Z",
   "source": "csv",
   "mode": "draft",
   "rows": [
@@ -2005,6 +2005,18 @@
       "onSite": true,
       "onSiteExplicitNo": false,
       "title": "Andromeda Galaxy (M31)"
+    },
+    {
+      "id": 182,
+      "category": "ASTRO",
+      "set": "Deep sky",
+      "year": "2026",
+      "fileName": "rosette_26_WEB_FINAL_.jpg",
+      "fileId": "1t5mxQYX7firlcIiucGM9f0dXgoxNPoMZ",
+      "state": "EXPORTED",
+      "onSite": true,
+      "onSiteExplicitNo": false,
+      "title": "Rosette Nebula (NGC 2237/2244), Monoceros"
     }
   ]
 }
