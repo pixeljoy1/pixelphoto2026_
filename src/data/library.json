@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-27T09:27:34.334Z",
+  "generatedAt": "2026-11-06T15:57:21.947Z",
   "source": "csv",
   "mode": "draft",
   "rows": [
@@ -1981,6 +1981,18 @@
       "state": "EXPORTED",
       "onSite": true,
       "onSiteExplicitNo": false
+    },
+    {
+      "id": 180,
+      "category": "ASTRO",
+      "set": "Deep sky",
+      "year": "2026",
+      "fileName": "FInal_test1.1__signed.jpg",
+      "fileId": "1u5I0ifSEPJsoaXvO_f_LvlrS2Ntu3Lx5",
+      "state": "EXPORTED",
+      "onSite": true,
+      "onSiteExplicitNo": false,
+      "title": "Sadr Region (IC 1318 / Sh2-108), Cygnus"
     }
   ]
 }
