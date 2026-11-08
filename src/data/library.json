@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-07T04:52:00.165Z",
+  "generatedAt": "2026-11-08T04:02:14.598Z",
   "source": "csv",
   "mode": "draft",
   "rows": [
@@ -2017,6 +2017,18 @@
       "onSite": true,
       "onSiteExplicitNo": false,
       "title": "Heart Nebula (IC 1805), Cassiopeia"
+    },
+    {
+      "id": 183,
+      "category": "ASTRO",
+      "set": "Deep sky",
+      "year": "2026",
+      "fileName": "HEART2_hubble1.2_TOPRINT_.png",
+      "fileId": "1Hcn3Vi9xUoQE2dYCVlSmKbOyiXrRtKFP",
+      "state": "EXPORTED",
+      "onSite": true,
+      "onSiteExplicitNo": false,
+      "title": "Heart Nebula (IC 1805), Hubble Palette, Cassiopeia"
     }
   ]
 }
