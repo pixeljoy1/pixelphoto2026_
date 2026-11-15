@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-15T10:24:35.635Z",
+  "generatedAt": "2026-11-15T10:27:50.993Z",
   "source": "csv",
   "mode": "draft",
   "rows": [
@@ -1985,7 +1985,7 @@
     {
       "id": 180,
       "category": "ASTRO",
-      "set": "Deep sky",
+      "set": "Processed from Other Sources",
       "year": "2026",
       "fileName": "FInal_test1.1__signed.jpg",
       "fileId": "1u5I0ifSEPJsoaXvO_f_LvlrS2Ntu3Lx5",
@@ -2009,7 +2009,7 @@
     {
       "id": 182,
       "category": "ASTRO",
-      "set": "Deep sky",
+      "set": "Processed from Other Sources",
       "year": "2026",
       "fileName": "rosette_26_WEB_FINAL_.jpg",
       "fileId": "1t5mxQYX7firlcIiucGM9f0dXgoxNPoMZ",
@@ -2021,7 +2021,7 @@
     {
       "id": 183,
       "category": "ASTRO",
-      "set": "Deep sky",
+      "set": "Processed from Other Sources",
       "year": "2026",
       "fileName": "HEART2_hubble1.2_TOPRINT_.png",
       "fileId": "1Hcn3Vi9xUoQE2dYCVlSmKbOyiXrRtKFP",
