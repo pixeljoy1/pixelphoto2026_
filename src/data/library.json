@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-15T10:20:10.379Z",
+  "generatedAt": "2026-11-15T10:24:35.635Z",
   "source": "csv",
   "mode": "draft",
   "rows": [
@@ -2035,8 +2035,8 @@
       "category": "ASTRO",
       "set": "Deep sky",
       "year": "2026",
-      "fileName": "final_COMP_1.1_.png",
-      "fileId": "1n42OWYb65QefrZb-LIPrLRLHlJ_MVD4l",
+      "fileName": "file_000000008e5882078c5e7f74041feb25.png",
+      "fileId": "1xE82URDqZmWbooMIOZ3ivQThcbNLsmMx",
       "state": "EXPORTED",
       "onSite": true,
       "onSiteExplicitNo": false,
